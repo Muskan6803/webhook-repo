@@ -16,9 +16,11 @@ load_dotenv()
 
 app = Flask(__name__)
 
-client = MongoClient(os.getenv("MONGO_URI"))
-db = client.github_events
-collection = db.events
+MONGO_URI = os.environ.get("MONGO_URI")
+
+client = MongoClient(MONGO_URI)
+db = client.github_events  
+collection = db.events  
 
 
 # -------------------- UTILITY FUNCTIONS --------------------
@@ -129,4 +131,4 @@ def serve_ui():
 # -------------------- APP START --------------------
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000)
