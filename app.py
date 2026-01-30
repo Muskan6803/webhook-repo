@@ -8,6 +8,7 @@ from flask import Flask, request, jsonify, send_from_directory
 from pymongo import MongoClient
 from datetime import datetime
 from dotenv import load_dotenv
+from urllib.parse import quote_plus
 import os
 
 # -------------------- INITIAL SETUP --------------------
@@ -16,12 +17,27 @@ load_dotenv()
 
 app = Flask(__name__)
 
-MONGO_URI = os.environ.get("MONGO_URI")
+# -------------------- MONGODB CONNECTION (SAFE) --------------------
 
-client = MongoClient(MONGO_URI)
-db = client.github_events  
-collection = db.events  
+RAW_MONGO_URI = os.environ.get("MONGO_URI")
 
+if not RAW_MONGO_URI:
+    raise Exception("MONGO_URI environment variable not set")
+
+# Expected format:
+# mongodb+srv://username:password@cluster.mongodb.net/dbname?options
+
+prefix, rest = RAW_MONGO_URI.split("://", 1)
+credentials, suffix = rest.split("@", 1)
+username, password = credentials.split(":", 1)
+
+safe_password = quote_plus(password)
+
+SAFE_MONGO_URI = f"{prefix}://{username}:{safe_password}@{suffix}"
+
+client = MongoClient(SAFE_MONGO_URI)
+db = client.github_events
+collection = db.events
 
 # -------------------- UTILITY FUNCTIONS --------------------
 
@@ -30,7 +46,6 @@ def parse_github_timestamp(timestamp_str):
     Convert GitHub ISO timestamp string to Python datetime (UTC).
     """
     return datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
-
 
 # -------------------- WEBHOOK ENDPOINT --------------------
 
@@ -93,30 +108,20 @@ def github_webhook():
 
     return jsonify({"status": "success"}), 200
 
-
 # -------------------- EVENTS API (FOR UI POLLING) --------------------
 
 @app.route("/events", methods=["GET"])
 def get_events():
     """
-    Fetch events newer than the provided timestamp.
-    Prevents duplicate UI rendering.
+    Fetch latest events for UI polling.
     """
-    since = request.args.get("since")
-
-    query = {}
-    if since:
-        query["timestamp"] = {
-            "$gt": datetime.fromisoformat(since)
-        }
-
     events = list(
-        collection.find(query, {"_id": 0})
+        collection.find({}, {"_id": 0})
         .sort("timestamp", -1)
+        .limit(20)
     )
 
     return jsonify(events)
-
 
 # -------------------- UI ROUTE --------------------
 
@@ -127,6 +132,12 @@ def serve_ui():
     """
     return send_from_directory("static", "index.html")
 
+# -------------------- TEST DB CONNECTION --------------------
+
+@app.route("/test-db")
+def test_db():
+    collection.insert_one({"test": "MongoDB connected"})
+    return "MongoDB working!"
 
 # -------------------- APP START --------------------
 
