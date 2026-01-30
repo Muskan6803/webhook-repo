@@ -8,34 +8,24 @@ from flask import Flask, request, jsonify, send_from_directory
 from pymongo import MongoClient
 from datetime import datetime
 from dotenv import load_dotenv
-from urllib.parse import quote_plus
 import os
+from pathlib import Path
 
 # -------------------- INITIAL SETUP --------------------
 
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env")
 
 app = Flask(__name__)
 
 # -------------------- MONGODB CONNECTION (SAFE) --------------------
 
-RAW_MONGO_URI = os.environ.get("MONGO_URI")
+MONGO_URI = os.getenv("MONGO_URI")
 
-if not RAW_MONGO_URI:
+if not MONGO_URI:
     raise Exception("MONGO_URI environment variable not set")
 
-# Expected format:
-# mongodb+srv://username:password@cluster.mongodb.net/dbname?options
-
-prefix, rest = RAW_MONGO_URI.split("://", 1)
-credentials, suffix = rest.split("@", 1)
-username, password = credentials.split(":", 1)
-
-safe_password = quote_plus(password)
-
-SAFE_MONGO_URI = f"{prefix}://{username}:{safe_password}@{suffix}"
-
-client = MongoClient(SAFE_MONGO_URI)
+client = MongoClient(MONGO_URI)
 db = client.github_events
 collection = db.events
 
