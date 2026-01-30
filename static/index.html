@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>GitHub Activity Tracker</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    li {
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Latest GitHub Activity</h2>
+  <ul id="events"></ul>
+
+  <script>
+    let lastFetchedAt = null;
+
+    function formatDate(timestamp) {
+      const date = new Date(timestamp);
+      return date.toUTCString();
+    }
+
+    async function fetchEvents() {
+      let url = "/events";
+
+      if (lastFetchedAt) {
+        url += `?since=${lastFetchedAt}`;
+      }
+
+      const response = await fetch(url);
+      const events = await response.json();
+
+      if (events.length > 0) {
+        lastFetchedAt = events[0].timestamp;
+      }
+
+      const list = document.getElementById("events");
+
+      events.reverse().forEach(event => {
+        let text = "";
+
+        if (event.action === "PUSH") {
+          text = `${event.author} pushed to ${event.to_branch} on ${formatDate(event.timestamp)}`;
+        } else if (event.action === "PULL_REQUEST") {
+          text = `${event.author} submitted a pull request from ${event.from_branch} to ${event.to_branch} on ${formatDate(event.timestamp)}`;
+        } else if (event.action === "MERGE") {
+          text = `${event.author} merged branch ${event.from_branch} to ${event.to_branch} on ${formatDate(event.timestamp)}`;
+        }
+
+        const li = document.createElement("li");
+        li.innerText = text;
+        list.prepend(li);
+      });
+    }
+
+    fetchEvents();
+    setInterval(fetchEvents, 15000);
+  </script>
+
+</body>
+</html>

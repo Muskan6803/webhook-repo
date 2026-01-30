@@ -1,0 +1,4 @@
+Flask
+pymongo
+python-dotenv
+python-3.10.12
